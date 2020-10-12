@@ -1038,4 +1038,333 @@ function numberToString(n: ThisParameterType<typeof toHex>) {
 	return toHex.apply(n);
 }
 ```
-ts-node
+
+### Decorator, Module and Mixins
+
+decorator  
+
+enable experimental support for decorator.  
+`tsc --target ES5 --experimentalDecorators`
+
+or in tsconfig.json  
+
+```json
+{
+	"compilerOptions": {
+		"target": "ES5",
+		"experimentalDecorators": true
+	}
+}
+```
+
+decorator factories  
+
+```ts
+function color(value: string) {
+	// this is the decorator factory
+	return function (target) {
+		// this is the decorator
+		// do something with 'target' and 'value'...
+	};
+}
+
+// use @functionName
+function sealed(target) {
+	// do something with 'target' ...
+}
+// to use as decorator use @sealed
+
+// multiple decorator declaration
+// @f @g x
+// resulting composite (f ∘ g)(x) is equivalent to f(g(x)).
+
+function f() {
+	console.log("f(): evaluated");
+	return function (
+		target,
+		propertyKey: string,
+		descriptor: PropertyDescriptor
+	) {
+		console.log("f(): called");
+	};
+}
+
+function g() {
+	console.log("g(): evaluated");
+	return function (
+		target,
+		propertyKey: string,
+		descriptor: PropertyDescriptor
+	) {
+		console.log("g(): called");
+	};
+}
+
+class C {
+	@f()
+	@g()
+	method() {}
+}
+// evaluation order
+// f(): evaluated
+// g(): evaluated
+// g(): called
+// f(): called
+
+
+// decorator in classes
+@sealed
+class Greeter {
+	greeting: string;
+	constructor(message: string) {
+		this.greeting = message;
+	}
+	greet() {
+		return "Hello, " + this.greeting;
+	}
+}
+
+// definition @sealed
+function sealed(constructor: Function) {
+	Object.seal(constructor);
+	Object.seal(constructor.prototype);
+}
+
+function classDecorator<T extends { new (...args: any[]): {} }>(
+	constructor: T
+) {
+	return class extends constructor {
+		newProperty = "new property";
+		hello = "override";
+	};
+}
+
+@classDecorator
+class Greeter {
+	property = "property";
+	hello: string;
+	constructor(m: string) {
+		this.hello = m;
+	}
+}
+
+console.log(new Greeter("world"));
+
+// method decorator
+class Greeter {
+	greeting: string;
+	constructor(message: string) {
+		this.greeting = message;
+	}
+
+	@enumerable(false)
+	greet() {
+		return "Hello, " + this.greeting;
+	}
+}
+
+function enumerable(value: boolean) {
+	return function (
+		target: any,
+		propertyKey: string,
+		descriptor: PropertyDescriptor
+	) {
+		descriptor.enumerable = value;
+	};
+}
+
+// parameter decorators
+class Greeter {
+	greeting: string;
+
+	constructor(message: string) {
+		this.greeting = message;
+	}
+
+	@validate
+	greet(@required name: string) {
+		return "Hello " + name + ", " + this.greeting;
+	}
+}
+// use 'reflect-metadata' module
+// tsc --target ES5 --experimentalDecorators --emitDecoratorMetadata
+// import "reflect-metadata";
+
+```
+
+Namespaces 
+namespaces are not merged unlike interfaces
+
+```ts  
+
+namespace Animal {
+	let haveMuscles = true;
+
+	export function animalsHaveMuscles() {
+		return haveMuscles;
+	}
+} 
+
+namespace Animal {
+	export function doAnimalsHaveMuscles() {
+		return haveMuscles; // Error, because haveMuscles is not accessible here
+	}
+}
+```
+
+Iterators and Generators  
+
+```ts  
+// for of
+let someArray = [1, "string", false];
+
+for (let entry of someArray) {
+	console.log(entry); // 1, "string", false
+}
+
+let list = [4, 5, 6];
+
+for (let i in list) {
+	console.log(i); // "0", "1", "2",
+}
+
+for (let i of list) {
+	console.log(i); // "4", "5", "6"
+}
+let pets = new Set(["Cat", "Dog", "Hamster"]);
+pets["species"] = "mammals";
+
+for (let pet in pets) {
+	console.log(pet); // "species"
+}
+
+for (let pet of pets) {
+	console.log(pet); // "Cat", "Dog", "Hamster"
+}
+```
+
+Mixins   
+
+```ts
+class Sprite {
+	name = "";
+	x = 0;
+	y = 0;
+
+	constructor(name: string) {
+		this.name = name;
+	}
+}
+
+type Constructor = new (...args: any[]) => {};
+
+function Scale<TBase extends Constructor>(Base: TBase) {
+	return class Scaling extends Base {
+		// Mixins may not declare private/protected properties
+		// however, you can use ES2020 private fields
+		_scale = 1;
+
+		setScale(scale: number) {
+			this._scale = scale;
+		}
+
+		get scale(): number {
+			return this._scale;
+		}
+	};
+}
+
+// Compose a new class from the Sprite class,
+// with the Mixin Scale applier:
+const EightBitSprite = Scale(Sprite);
+
+const flappySprite = new EightBitSprite("Bird");
+flappySprite.setScale(0.8);
+console.log(flappySprite.scale);
+
+// This was our previous constructor:
+type Constructor = new (...args: any[]) => {};
+// Now we use a generic version which can apply a constraint on
+// the class which this mixin is applied to
+type GConstructor<T = {}> = new (...args: any[]) => T;
+type Positionable = GConstructor<{ setPos: (x: number, y: number) => void }>;
+type Spritable = GConstructor<typeof Sprite>;
+type Loggable = GConstructor<{ print: () => void }>;
+function Jumpable<TBase extends Positionable>(Base: TBase) {
+	return class Jumpable extends Base {
+		jump() {
+			// This mixin will only work if it is passed a base
+			// class which has setPos defined because of the
+			// Positionable constraint.
+			this.setPos(0, 20);
+		}
+	};
+}
+
+// applying mixins
+// Each mixin is a traditional ES class
+class Jumpable {
+	jump() {}
+}
+
+class Duckable {
+	duck() {}
+}
+
+// Including the base
+class Sprite {
+	x = 0;
+	y = 0;
+}
+
+// Then you create an interface which merges
+// the expected mixins with the same name as your base
+interface Sprite extends Jumpable, Duckable {}
+// Apply the mixins into the base class via
+// the JS at runtime
+applyMixins(Sprite, [Jumpable, Duckable]);
+
+let player = new Sprite();
+player.jump();
+console.log(player.x, player.y);
+
+// This can live anywhere in your codebase:
+function applyMixins(derivedCtor: any, constructors: any[]) {
+	constructors.forEach((baseCtor) => {
+		Object.getOwnPropertyNames(baseCtor.prototype).forEach((name) => {
+			Object.defineProperty(
+				derivedCtor.prototype,
+				name,
+				Object.getOwnPropertyDescriptor(baseCtor.prototype, name)
+			);
+		});
+	});
+}
+```
+
+Modules  
+
+```ts
+// stringValidator.ts
+export interface StringValidator {
+	isAcceptable(s: string): boolean;
+}
+// zipCodeValidator.ts
+import { StringValidator } from "./StringValidator";
+
+export const numberRegexp = /^[0-9]+$/;
+
+export class ZipCodeValidator implements StringValidator {
+	isAcceptable(s: string) {
+		return s.length === 5 && numberRegexp.test(s);
+	}
+}
+
+class ZipCodeValidator implements StringValidator {
+	isAcceptable(s: string) {
+		return s.length === 5 && numberRegexp.test(s);
+	}
+}
+export { ZipCodeValidator };
+export { ZipCodeValidator as mainValidator };
+```
