@@ -5,7 +5,7 @@ to install typescript we need node.js first installed
 
 ```
 npm install -g typescript
-
+npm install --save-dev typescript
 ```
 
 
@@ -13,7 +13,7 @@ npm install -g typescript
 
 ```sh
 mkdir -p ../dist/typescript-essential/
-cd ../dist/typescript-essential
+cd ../dist/typescript-essential/
 ```
 
 ```ts
@@ -51,7 +51,7 @@ interface Person {
 }
 
 function greeter(person: Person){
-  return "Hello, " +person.firstName + "" +person.lastName;
+	return "Hello, " +person.firstName + "" +person.lastName;
 }
 
 let user = { firstName: "Jane", lastName: "User"};
@@ -64,14 +64,14 @@ Try to use Input type Classes
 ```typescript :file=../dist/typescript-essentials/greeter.ts  
 
 class Student {
-  fullName: string;
-  constructor(
-	public firstName: string,
-	public middleInitial: string,
-	public lastName: string
-  ) {
-	this.fullName = firstName + " "+middleInitial+ " "+lastName;
-  }
+	fullName: string;
+	constructor(
+		public firstName: string,
+		public middleInitial: string,
+		public lastName: string
+	) {
+		this.fullName = firstName + " "+middleInitial+ " "+lastName;
+	}
 }
 
 interface Person{
@@ -110,4 +110,13 @@ Compiling greeter.ts
 tsc ../dist/typescript-essentials/greeter.ts
 node ../dist/typescript-essentials/greeter.js
 ```
+
+spin up simple http server
+
+```sh
+cd ../dist/typescript-essentials/
+python -m SimpleHTTPServer
+```
+
+### Basic Types
 
