@@ -604,3 +604,158 @@ function loggingIdentity<T>(arg: Array<T>): Array<T> {
 	return arg;
 }
 ```
+
+### Advanced Types   
+
+type predicate   
+
+```ts
+function isFish(pet: Fish | Bird): pet is Fish {
+	return (pet as Fish).swim !== undefined;
+}
+// Both calls to 'swim' and 'fly' are now okay.
+let pet = getSmallPet();
+
+if (isFish(pet)) {
+	pet.swim();
+} else {
+	pet.fly();
+}
+
+// quicker using in operator
+function move(pet: Fish | Bird) {
+	if ("swim" in pet) {
+		return pet.swim();
+	}
+	return pet.fly();
+}
+
+// using type guards
+function isNumber(x: any): x is number {
+	return typeof x === "number";
+}
+
+function isString(x: any): x is string {
+	return typeof x === "string";
+}
+
+function padLeft(value: string, padding: string | number) {
+	if (isNumber(padding)) {
+		return Array(padding + 1).join(" ") + value;
+	}
+	if (isString(padding)) {
+		return padding + value;
+	}
+	throw new Error(`Expected string or number, got '${padding}'.`);
+}
+
+// interfaceof
+
+interface Padder {
+	getPaddingString(): string;
+}
+
+class SpaceRepeatingPadder implements Padder {
+	constructor(private numSpaces: number) {}
+	getPaddingString() {
+		return Array(this.numSpaces + 1).join(" ");
+	}
+}
+
+class StringPadder implements Padder {
+	constructor(private value: string) {}
+	getPaddingString() {
+		return this.value;
+	}
+}
+
+function getRandomPadder() {
+	return Math.random() < 0.5
+		? new SpaceRepeatingPadder(4)
+		: new StringPadder("  ");
+}
+
+let padder: Padder = getRandomPadder();
+//       ^ = let padder: Padder
+
+if (padder instanceof SpaceRepeatingPadder) {
+	padder;
+	//       ^ = Could not get LSP result: er;>
+	//	<  /
+}
+if (padder instanceof StringPadder) {
+	padder;
+	//       ^ = Could not get LSP result: er;>
+	//	<  /
+}
+```
+
+assign null types or undefined types    
+
+```ts
+let exampleString = "foo";
+exampleString = null;
+//Type 'null' is not assignable to type 'string'.
+
+let stringOrNull: string | null = "bar";
+
+stringOrNull = null;
+
+stringOrNull = undefined;
+//Type 'undefined' is not assignable to type 'string | null'.
+
+// should with optional parameters --strictNullChecks
+function f(x: number, y?: number) {
+	return x + (y ?? 0);
+}
+
+f(1, 2);
+f(1);
+f(1, undefined);
+f(1, null);
+
+class C {
+	a: number;
+	b?: number;
+}
+
+let c = new C();
+
+c.a = 12;
+c.a = undefined;
+// Type 'undefined' is not assignable to type 'number'.
+c.b = 13;
+c.b = undefined;
+c.b = null;
+// Type 'null' is not assignable to type 'number | undefined'.
+```
+
+
+type aliases  
+
+```ts
+type Second = number;
+let timeInSecond: number = 10;
+let time: Second = 10;
+
+type Container<T> = { value: T };
+
+type Tree<T> = {
+	value: T;
+	left?: Tree<T>;
+	right?: Tree<T>;
+};
+
+type LinkedList<Type> = Type & { next: LinkedList<Type> };
+
+interface Person {
+  name: string;
+}
+
+let people = getDriversLicenseQueue();
+people.name;
+people.next.name;
+people.next.next.name;
+people.next.next.next.name;
+//                  ^ = (property) next: LinkedList
+```
