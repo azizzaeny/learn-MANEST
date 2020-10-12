@@ -490,4 +490,117 @@ let pet = getSmallPet();
 pet.layEggs();
 ```
 
+### Type Classes, Enums and Generics  
+Classes  
 
+```ts
+class Greeter {
+	greeting: string;
+
+	constructor(message: string) {
+		this.greeting = message;
+	}
+
+	greet() {
+		return "Hello, " + this.greeting;
+	}
+}
+
+let greeter = new Greeter("world");
+
+class Animal {
+	move(distanceInMeters: number = 0) {
+		console.log(`Animal moved ${distanceInMeters}m.`);
+	}
+}
+
+class Dog extends Animal {
+	bark() {
+		console.log("Woof! Woof!");
+	}
+}
+
+const dog = new Dog();
+dog.bark();
+dog.move(10);
+dog.bark();
+```
+
+Enums Declaration   
+
+```ts
+enum Direction {
+	Up = 1,
+	Down,
+	Left,
+	Right
+}
+
+enum Direction {
+	Up,
+	Down,
+	Left,
+	Right
+}
+
+enum UserResponse {
+	No = 0,
+	Yes = 1
+}
+
+function respond(recipient: string, message: UserResponse): void {
+	// ...
+}
+
+respond("Princess Caroline", UserResponse.Yes);
+
+enum Direction {
+	Up = "UP",
+	Down = "DOWN",
+	Left = "LEFT",
+	Right = "RIGHT"
+}
+
+// enums value string
+
+
+enum E1 {
+	X,
+	Y,
+	Z
+}
+
+enum E2 {
+	A = 1,
+	B,
+	C
+}
+// constant value
+```
+
+Generic
+
+```ts
+function identity(arg: number): number {
+	return arg;
+}
+
+function identity(arg: any): any {
+	return arg;
+}
+
+function identity<T>(arg: T): T {
+	return arg;
+}
+
+let output = identity<string>("myString");
+//       ^ = let output: string
+
+let output = identity<string>("myString");
+//       ^ = let output: string
+
+function loggingIdentity<T>(arg: Array<T>): Array<T> {
+	console.log(arg.length); // Array has a .length, so no more error
+	return arg;
+}
+```
