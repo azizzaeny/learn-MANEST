@@ -749,7 +749,7 @@ type Tree<T> = {
 type LinkedList<Type> = Type & { next: LinkedList<Type> };
 
 interface Person {
-  name: string;
+	name: string;
 }
 
 let people = getDriversLicenseQueue();
@@ -759,3 +759,283 @@ people.next.next.name;
 people.next.next.next.name;
 //                  ^ = (property) next: LinkedList
 ```
+
+
+Difference between interface and types is that we cannot extend types, when we redeclare interfaces it would extend previous one.  
+
+```ts
+interface Window {
+	title: string
+}
+
+interface Window {
+	ts: import("typescript")
+}
+
+const src = 'const a = "Hello World"';
+window.ts.transpileModule(src, {});
+
+type Window = {
+	title: string
+}
+
+type Window = {
+	ts: import("typescript")
+}
+
+// Error: Duplicate identifier 'Window'.
+
+```
+### Advanced types  
+Index types, keyof   
+```ts
+function pluck<T, K extends keyof T>(o: T, propertyNames: K[]): T[K][] {
+	return propertyNames.map((n) => o[n]);
+}
+
+interface Car {
+	manufacturer: string;
+	model: string;
+	year: number;
+}
+
+let taxi: Car = {
+	manufacturer: "Toyota",
+	model: "Camry",
+	year: 2014,
+};
+
+// Manufacturer and model are both of type string,
+// so we can pluck them both into a typed string array
+let makeAndModel: string[] = pluck(taxi, ["manufacturer", "model"]);
+
+// If we try to pluck model and year, we get an
+// array of a union type: (string | number)[]
+let modelYear = pluck(taxi, ["model", "year"]);
+
+function getProperty<T, K extends keyof T>(o: T, propertyName: K): T[K] {
+	return o[propertyName]; // o[propertyName] is of type T[K]
+}
+```
+
+mapped types   
+```ts
+type Partial<T> = {
+	[P in keyof T]?: T[P];
+};
+
+type Readonly<T> = {
+	readonly [P in keyof T]: T[P];
+};
+
+// to use it
+type PersonPartial = Partial<Person>;
+//   ^ = type PersonPartial = {
+//  name?: string | undefined;
+//  age?: number | undefined;
+// }
+type ReadonlyPerson = Readonly<Person>;
+//   ^ = type ReadonlyPerson = {
+// readonly name: string;
+// readonly age: number;
+//}
+
+// wrapped types
+type Proxy<T> = {
+	get(): T;
+	set(value: T): void;
+};
+
+type Proxify<T> = {
+	[P in keyof T]: Proxy<T[P]>;
+};
+
+function proxify<T>(o: T): Proxify<T> {
+	// ... wrap proxies ...
+}
+
+let props = { rooms: 4 };
+let proxyProps = proxify(props);
+//  ^ = let proxyProps: Proxify<{
+//          rooms: number;
+// }>
+	
+```
+
+Conditional Types   
+
+```ts 
+//T extends U ? X : Y
+
+declare function f<T extends boolean>(x: T): T extends true ? string : number;
+
+// Type is 'string | number'
+let x = f(Math.random() < 0.5);
+//  ^ = let x: string | number
+```
+
+### Utility types
+```ts
+// partial
+interface Todo {
+	title: string;
+	description: string;
+}
+
+function updateTodo(todo: Todo, fieldsToUpdate: Partial<Todo>) {
+	return { ...todo, ...fieldsToUpdate };
+}
+
+const todo1 = {
+	title: "organize desk",
+	description: "clear clutter",
+};
+
+const todo2 = updateTodo(todo1, {
+	description: "throw out trash",
+});
+
+// readonly
+interface Todo {
+	title: string;
+}
+
+const todo: Readonly<Todo> = {
+	title: "Delete inactive users",
+};
+
+todo.title = "Hello";
+// Cannot assign to 'title' because it is a read-only property.
+
+
+// Object.freeze is also readonly
+function freeze<Type>(obj: Type): Readonly<Type>;
+
+// records
+interface PageInfo {
+	title: string;
+}
+
+type Page = "home" | "about" | "contact";
+
+const nav: Record<Page, PageInfo> = {
+	about: { title: "about" },
+	contact: { title: "contact" },
+	home: { title: "home" },
+};
+
+nav.about;
+// ^ = const nav: Record
+
+// pick
+
+interface Todo {
+	title: string;
+	description: string;
+	completed: boolean;
+}
+
+type TodoPreview = Pick<Todo, "title" | "completed">;
+
+const todo: TodoPreview = {
+	title: "Clean room",
+	completed: false,
+};
+
+todo;
+// ^ = const todo: Pick
+
+
+// omit
+
+interface Todo {
+	title: string;
+	description: string;
+	completed: boolean;
+}
+
+type TodoPreview = Omit<Todo, "description">;
+
+const todo: TodoPreview = {
+	title: "Clean room",
+	completed: false,
+};
+
+todo;
+// ^ = const todo: Pick
+
+// exclude 
+type T0 = Exclude<"a" | "b" | "c", "a">;
+//    ^ = type T0 = "b" | "c"
+type T1 = Exclude<"a" | "b" | "c", "a" | "b">;
+//    ^ = type T1 = "c"
+type T2 = Exclude<string | number | (() => void), Function>;
+//    ^ = type T2 = string | number
+
+// extract
+type T0 = Extract<"a" | "b" | "c", "a" | "f">;
+//    ^ = type T0 = "a"
+type T1 = Extract<string | number | (() => void), Function>;
+//    ^ = type T1 = () => void
+
+// nonnullable
+type T0 = NonNullable<string | number | undefined>;
+//    ^ = type T0 = string | number
+type T1 = NonNullable<string[] | null | undefined>;
+//    ^ = type T1 = string[]
+
+// parameters 
+declare function f1(arg: { a: number; b: string }): void;
+
+type T0 = Parameters<() => string>;
+//    ^ = type T0 = []
+type T1 = Parameters<(s: string) => void>;
+//    ^ = type T1 = [s: string]
+type T2 = Parameters<<T>(arg: T) => T>;
+//    ^ = type T2 = [arg: unknown]
+type T3 = Parameters<typeof f1>;
+//    ^ = type T3 = [arg: {
+//       a: number;
+//       b: string;
+//      }]
+type T4 = Parameters<any>;
+//    ^ = type T4 = unknown[]
+type T5 = Parameters<never>;
+//    ^ = type T5 = never
+
+
+// instanceType
+class C {
+	x = 0;
+	y = 0;
+}
+
+type T0 = InstanceType<typeof C>;
+//    ^ = type T0 = C
+type T1 = InstanceType<any>;
+//    ^ = type T1 = any
+type T2 = InstanceType<never>;
+//    ^ = type T2 = never
+type T3 = InstanceType<string>
+
+// required
+interface Props {
+	a?: number;
+	b?: string;
+}
+
+const obj: Props = { a: 5 };
+
+const obj2: Required<Props> = { a: 5 };
+//Property 'b' is missing in type '{ a: number; }' but required in type 'Required<Props>'.
+
+// this parameter type
+function toHex(this: Number) {
+	return this.toString(16);
+}
+
+function numberToString(n: ThisParameterType<typeof toHex>) {
+	return toHex.apply(n);
+}
+```
+ts-node
