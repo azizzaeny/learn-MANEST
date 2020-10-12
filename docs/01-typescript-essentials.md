@@ -1344,7 +1344,9 @@ function applyMixins(derivedCtor: any, constructors: any[]) {
 
 Modules  
 
-```ts
+```ts  
+
+// Exporting
 // stringValidator.ts
 export interface StringValidator {
 	isAcceptable(s: string): boolean;
@@ -1367,4 +1369,203 @@ class ZipCodeValidator implements StringValidator {
 }
 export { ZipCodeValidator };
 export { ZipCodeValidator as mainValidator };
+
+// importing
+import { ZipCodeValidator as ZCV } from "./ZipCodeValidator";
+let myValidator = new ZCV();
+
+// import entire module aliases
+import * as validator from "./ZipCodeValidator";
+let myValidator = new validator.ZipCodeValidator();
+
+// sideEffect only
+import "./my-module.js";
+
+// importing type
+
+// Re-using the same import
+import { APIResponseType } from "./api";
+
+// Explicitly use import type
+import type { APIResponseType } from "./api";
+
+// default exporting
+declare let $: JQuery;
+export default $;
+
+import $ from "jquery";
+
+$("button.continue").html("Next Step...");
+
+// 
+export default class ZipCodeValidator {
+	static numberRegexp = /^[0-9]+$/;
+	isAcceptable(s: string) {
+		return s.length === 5 && ZipCodeValidator.numberRegexp.test(s);
+	}
+}
+
+// export all as
+export * as utilities from "./utilities";
+// importing all
+import { utilities } from "./index";
+
+// import, require
+import zip = require("./ZipCodeValidator");
+
+```
+
+### Namespaces, symbols and variable declaration
+
+Concept of namespaces
+
+```ts
+// declaring validator in single file
+interface StringValidator {
+	isAcceptable(s: string): boolean;
+}
+
+let lettersRegexp = /^[A-Za-z]+$/;
+let numberRegexp = /^[0-9]+$/;
+
+class LettersOnlyValidator implements StringValidator {
+	isAcceptable(s: string) {
+		return lettersRegexp.test(s);
+	}
+}
+
+class ZipCodeValidator implements StringValidator {
+	isAcceptable(s: string) {
+		return s.length === 5 && numberRegexp.test(s);
+	}
+}
+
+// Some samples to try
+let strings = ["Hello", "98052", "101"];
+
+// Validators to use
+let validators: { [s: string]: StringValidator } = {};
+validators["ZIP code"] = new ZipCodeValidator();
+validators["Letters only"] = new LettersOnlyValidator();
+
+// Show whether each string passed each validator
+for (let s of strings) {
+	for (let name in validators) {
+		let isMatch = validators[name].isAcceptable(s);
+		console.log(`'${s}' ${isMatch ? "matches" : "does not match"} '${name}'.`);
+	}
+}
+
+// instead writing all into one global object, we can group them into a namespace
+
+namespace Validation {
+	export interface StringValidator {
+		isAcceptable(s: string): boolean;
+	}
+
+	const lettersRegexp = /^[A-Za-z]+$/;
+	const numberRegexp = /^[0-9]+$/;
+
+	export class LettersOnlyValidator implements StringValidator {
+		isAcceptable(s: string) {
+			return lettersRegexp.test(s);
+		}
+	}
+
+	export class ZipCodeValidator implements StringValidator {
+		isAcceptable(s: string) {
+			return s.length === 5 && numberRegexp.test(s);
+		}
+	}
+}
+
+// multi file namespaces
+
+// validation.ts
+
+namespace Validation {
+	export interface StringValidator {
+		isAcceptable(s: string): boolean;
+	}
+}
+
+// lettersOnlyValidator.ts
+/// <reference path="Validation.ts" />
+namespace Validation {
+	const lettersRegexp = /^[A-Za-z]+$/;
+	export class LettersOnlyValidator implements StringValidator {
+		isAcceptable(s: string) {
+			return lettersRegexp.test(s);
+		}
+	}
+}
+// ZipCodeValidator
+/// <reference path="Validation.ts" />
+namespace Validation {
+	const numberRegexp = /^[0-9]+$/;
+	export class ZipCodeValidator implements StringValidator {
+		isAcceptable(s: string) {
+			return s.length === 5 && numberRegexp.test(s);
+		}
+	}
+}
+
+// test.ts
+/// <reference path="Validation.ts" />
+/// <reference path="LettersOnlyValidator.ts" />
+/// <reference path="ZipCodeValidator.ts" />
+
+// Some samples to try
+let strings = ["Hello", "98052", "101"];
+
+// Validators to use
+let validators: { [s: string]: Validation.StringValidator } = {};
+validators["ZIP code"] = new Validation.ZipCodeValidator();
+validators["Letters only"] = new Validation.LettersOnlyValidator();
+
+// Show whether each string passed each validator
+for (let s of strings) {
+	for (let name in validators) {
+		console.log(
+			`"${s}" - ${
+validators[name].isAcceptable(s) ? "matches" : "does not match"
+} ${name}`
+		);
+	}
+}
+
+// concat all into one
+// tsc --outFile sample.js Test.ts
+
+// or declare in ordered top-down
+// <script src="Validation.js" type="text/javascript" />
+// <script src="LettersOnlyValidator.js" type="text/javascript" />
+// <script src="ZipCodeValidator.js" type="text/javascript" />
+// <script src="Test.js" type="text/javascript" />
+
+```
+
+Module
+
+```ts
+// myModules.d.ts
+
+// In a .d.ts file or .ts file that is not a module:
+declare module "SomeModule" {
+	export function fn(): string;
+}
+
+/// <reference path="myModules.d.ts" />
+import * as m from "SomeModule";
+
+```
+
+Symbols  
+
+symbols are unique   
+
+```ts
+let sym2 = Symbol("key");
+let sym3 = Symbol("key");
+sym2 === sym3; // false, symbols are unique
 ```
