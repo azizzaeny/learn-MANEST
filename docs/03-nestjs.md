@@ -122,4 +122,80 @@ export class AppModule {}
 ```
 
 
-provider   
+Providers   
+
+```ts
+// cats.services.ts
+import { Injectable } from '@nestjs/common';
+import { Cat } from './interfaces/cat.interface';
+
+@Injectable()
+export class CatsService {
+	private readonly cats: Cat[] = [];
+
+	create(cat: Cat) {
+		this.cats.push(cat);
+	}
+
+	findAll(): Cat[] {
+		return this.cats;
+	}
+}
+
+// cat.interfaces.ts
+export interface Cat {
+	name: string;
+	age: number;
+	breed: string;
+}
+
+// cats.controller.ts
+import { Controller, Get, Post, Body } from '@nestjs/common';
+import { CreateCatDto } from './dto/create-cat.dto';
+import { CatsService } from './cats.service';
+import { Cat } from './interfaces/cat.interface';
+
+@Controller('cats')
+export class CatsController {
+	constructor(private catsService: CatsService) {}
+
+	@Post()
+	async create(@Body() createCatDto: CreateCatDto) {
+		this.catsService.create(createCatDto);
+	}
+
+	@Get()
+	async findAll(): Promise<Cat[]> {
+		return this.catsService.findAll();
+	}
+}
+
+// app.module.ts
+// registering
+import { Module } from '@nestjs/common';
+import { CatsController } from './cats/cats.controller';
+import { CatsService } from './cats/cats.service';
+
+@Module({
+	controllers: [CatsController],
+	providers: [CatsService],
+})
+export class AppModule {}
+```
+
+
+
+common directory structure   
+
+```txt
+src
+cats
+dto
+create-cat.dto.ts
+interfaces
+cat.interface.ts
+cats.service.ts
+cats.controller.ts
+app.module.ts
+main.ts
+```
