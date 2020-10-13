@@ -183,19 +183,113 @@ import { CatsService } from './cats/cats.service';
 export class AppModule {}
 ```
 
-
-
 common directory structure   
 
 ```txt
 src
-cats
-dto
-create-cat.dto.ts
-interfaces
-cat.interface.ts
-cats.service.ts
-cats.controller.ts
-app.module.ts
-main.ts
+  cats
+    dto
+      create-cat.dto.ts
+    interfaces
+      cat.interface.ts
+    cats.service.ts
+    cats.controller.ts
+    app.module.ts
+    main.ts
 ```
+
+registering module at global scopes
+
+```ts
+{
+	global: true,
+	module: DatabaseModule,
+	providers: providers,
+	exports: providers,
+}
+
+```
+Middleware  
+task:   
+- change the req, res object, 
+- end or terminate req, res cycle, 
+
+
+middleware should in injectable decorator.   
+
+example of usage.  
+
+```ts
+// logger.middleware.ts
+import {Injectable, NestMiddleware} from '@nestjs/common';
+import {Request, Response} from 'express';
+
+@Injectable()
+export class LoggerMiddleware implements NestMiddleware {
+	use(req: Request, res: Response, next: Function){
+		console.log('Request...');
+		next();
+	}
+}
+
+// applying it
+// app.modules.ts
+
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { LoggerMiddleware } from './common/middleware/logger.middleware';
+import { CatsModule } from './cats/cats.module';
+
+@Module({
+	imports: [CatsModule],
+})
+export class AppModule implements NestModule {
+	configure(consumer: MiddlewareConsumer) {
+		consumer
+			.apply(LoggerMiddleware)
+			.forRoutes('cats'); // only apply for routes cats
+		//.forRoutes({ path: 'cats', method: RequestMethod.GET });
+
+	}
+}
+```
+
+extending routes through middleware  
+
+```ts
+consumer
+	.apply(LoggerMiddleware)
+	.exclude(
+		{ path: 'cats', method: RequestMethod.GET },
+		{ path: 'cats', method: RequestMethod.POST },
+		'cats/(.*)',
+	)
+	.forRoutes(CatsController);
+```
+
+functional middleware  
+
+```ts
+// logger.middleware.ts
+
+import { Request, Response } from 'express';
+
+export function logger(req: Request, res: Response, next: Function) {
+	console.log(`Request...`);
+	next();
+};
+
+// app.module.ts
+
+consumer
+	.apply(logger)
+	.forRoutes(CatsController);
+```
+
+Multiple middleware  
+```ts
+consumer.apply(cors(), helmet(), logger).forRoutes(CatsController);
+```
+
+
+
+
