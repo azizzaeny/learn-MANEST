@@ -290,6 +290,327 @@ Multiple middleware
 consumer.apply(cors(), helmet(), logger).forRoutes(CatsController);
 ```
 
+Exception filters
+
+```ts
+// cats.controller.ts
+
+@Get
+async findAll(){
+	throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);	
+}
+
+//it would return the result
+{
+	"statusCode": 403,
+	"message": "Forbidden"
+}
+```
 
 
+Default Exception Filter  
 
+```json
+{
+	"statusCode": 500,
+	"message": "Internal server error"
+}
+
+```
+
+Override default exceptions  
+
+```ts
+
+@Get()
+async findAll() {
+	throw new HttpException({
+		status: HttpStatus.FORBIDDEN,
+		error: 'This is a custom message',
+	}, HttpStatus.FORBIDDEN);
+}
+
+//result
+{
+	"status" : 403,
+	"error": 'This is a custom message'
+}
+```
+
+Custom Exception
+
+```ts
+//forbidden.exception.ts
+
+export class ForbiddenException extends HttpException {
+	constructor() {
+		super('Forbidden', HttpStatus.FORBIDDEN);
+	}
+}
+
+// cats.controller.ts
+
+@Get()
+async findAll() {
+	throw new ForbiddenException();
+}
+
+// builtins
+// BadRequestException
+// UnauthorizedException
+// NotFoundException
+// ForbiddenException
+// NotAcceptableException
+// RequestTimeoutException
+// ConflictException
+// GoneException
+// HttpVersionNotSupportedException
+// PayloadTooLargeException
+// UnsupportedMediaTypeException
+// UnprocessableEntityException
+// InternalServerErrorException
+// NotImplementedException
+// ImATeapotException
+// MethodNotAllowedException
+// BadGatewayException
+// ServiceUnavailableException
+// GatewayTimeoutException
+// PreconditionFailedException
+
+```
+
+Exceptions Filter
+
+```ts
+//http-exception.filter.ts
+
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException } from '@nestjs/common';
+import { Request, Response } from 'express';
+
+@Catch(HttpException)
+export class HttpExceptionFilter implements ExceptionFilter {
+  catch(exception: HttpException, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
+    const status = exception.getStatus();
+
+    response
+      .status(status)
+      .json({
+        statusCode: status,
+        timestamp: new Date().toISOString(),
+        path: request.url,
+      });
+  }
+}
+```
+
+Pipes, Transformation or Validation  
+
+builtin pipe  
+
+```ts
+ValidationPipe
+ParseIntPipe
+ParseBoolPipe
+ParseArrayPipe
+ParseUUIDPipe
+DefaultValuePipe
+```
+
+```ts
+@Get(':id')
+async findOne(@Param('id', ParseIntPipe) id: number) {
+	return this.catsService.findOne(id);
+}
+
+// GET localhost:3000/abc
+
+{
+	"statusCode": 400,
+	"message": "Validation failed (numeric string is expected)",
+	"error": "Bad Request"
+}
+```
+
+Guards  
+
+exceuted in order. middlewares -> guards -> interceptor -> pipe
+
+example authorization guard.
+
+```ts
+//auth.guard.ts
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Observable } from 'rxjs';
+
+@Injectable()
+export class AuthGuard implements CanActivate {
+	canActivate(
+		context: ExecutionContext,
+	): boolean | Promise<boolean> | Observable<boolean> {
+		const request = context.switchToHttp().getRequest();
+		return validateRequest(request);
+	}
+}
+
+// if it true, request will be processed, if it false, nest will deny the request
+
+// roles.guards.ts
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Observable } from 'rxjs';
+
+@Injectable()
+export class RolesGuard implements CanActivate {
+	canActivate(
+		context: ExecutionContext,
+	): boolean | Promise<boolean> | Observable<boolean> {
+		return true;
+	}
+}
+
+// binding guards in controller
+
+@Controller('cats')
+@UseGuards(RolesGuard)
+export class CatsController {}
+
+const app = await NestFactory.create(AppModule);
+app.useGlobalGuards(new RolesGuard());
+
+
+import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+
+
+@Module({
+	providers: [
+		{
+			provide: APP_GUARD,
+			useClass: RolesGuard,
+		},
+	],
+})
+export class AppModule {}
+
+
+// roles per handler
+// cats.controller.ts
+
+@Post()
+@SetMetadata('roles', ['admin'])
+async create(@Body() createCatDto: CreateCatDto) {
+	this.catsService.create(createCatDto);
+}
+
+// roles.decorator.ts
+
+import { SetMetadata } from '@nestjs/common';
+
+export const Roles = (...roles: string[]) => SetMetadata('roles', roles);
+
+// cats.controller.ts
+
+@Post()
+@Roles('admin')
+async create(@Body() createCatDto: CreateCatDto) {
+	this.catsService.create(createCatDto);
+}
+
+```
+
+
+example using roles guards
+
+```ts
+
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+
+@Injectable()
+export class RolesGuard implements CanActivate {
+	constructor(private reflector: Reflector) {}
+
+	canActivate(context: ExecutionContext): boolean {
+		const roles = this.reflector.get<string[]>('roles', context.getHandler());
+		if (!roles) {
+			return true;
+		}
+		const request = context.switchToHttp().getRequest();
+		const user = request.user;
+		return matchRoles(roles, user.roles);
+	}
+}
+```
+
+
+Interceptors   
+
+example loggin interceptors
+
+```ts  
+// logging.interceptors.ts
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
+
+@Injectable()
+export class LoggingInterceptor implements NestInterceptor {
+	intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+		console.log('Before...');
+
+		const now = Date.now();
+		return next
+			.handle()
+			.pipe(
+				tap(() => console.log(`After... ${Date.now() - now}ms`)),
+			);
+	}
+}
+
+// in use
+// cats.controller.ts
+
+@UseInterceptors(LoggingInterceptor)
+export class CatsController {}
+
+// in a module
+
+import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+
+
+@Module({
+	providers: [
+		{
+			provide: APP_INTERCEPTOR,
+			useClass: LoggingInterceptor,
+		},
+	],
+})
+export class AppModule {}
+```
+
+example transform interceptors  
+
+```ts
+// transform.interceptor.ts
+
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+
+export interface Response<T> {
+	data: T;
+}
+
+
+@Injectable()
+export class TransformInterceptor<T> implements NestInterceptor<T, Response<T>> {
+	intercept(context: ExecutionContext, next: CallHandler): Observable<Response<T>> {
+		return next.handle().pipe(map(data => ({ data })));
+	}
+}
+
+```
